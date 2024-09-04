@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "1 Minute Workout Extension",
+  "version": "0.1.0",
+  "description": "1 Minute Workout Extension",
+  "action": {
+    "default_title": "1 Minute Workout",
+    "default_popup": "settings.html"
+  },
+  "permissions": [
+    "storage"
+  ]
+}
