@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>1 Minute Workout</title>
+		<link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png">
+		<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicons/favicon-32x32.png">
+		<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicons/favicon-16x16.png">
+		<link rel="manifest" href="/assets/favicons/site.webmanifest">
+		<link rel="shortcut icon" href="/assets/favicons/favicon.ico">
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebSite",
+				"name": "1 Minute Workout",
+				"url": "https://1minuteworkout.com",
+				"description": "",
+				"mainEntity": {
+					"@type": "WebApplication",
+					"name": "1 Minute Workout",
+					"description": "Easy to start workouts anywhere",
+					"applicationCategory": "Health & Fitness",
+					"operatingSystem": "All",
+					"url": "https://1minuteworkout.com",
+					"screenshot": {
+						"@type": "ImageObject",
+						"contentUrl": "https://1minuteworkout.com/assets/preview.png",
+						"description": "Screenshot of workout example"
+					}
+				}
+			}
+		</script>
+		<meta name="description" content="Easy to start workouts anywhere">
+		<meta property="og:title" content="1 Minute Workout">
+		<meta property="og:description" content="Easy to start workouts anywhere">
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+		<link rel="stylesheet" href="src/app.css">
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+	<div class="mx-auto max-w-7xl pt-16 lg:flex lg:gap-x-16 lg:px-8">
+		<h1 class="sr-only">General Settings</h1>
+
+		<aside class="flex overflow-x-auto border-b border-gray-900/5 py-4 lg:block lg:w-64 lg:flex-none lg:border-0 lg:py-20">
+			<nav class="flex-none px-4 sm:px-6 lg:px-0">
+				<ul role="list" class="flex gap-x-3 gap-y-1 whitespace-nowrap lg:flex-col">
+					<li>
+						<!-- Current: "bg-gray-50 text-indigo-600", Default: "text-gray-700 hover:text-indigo-600 hover:bg-gray-50" -->
+						<a href="#" class="group flex gap-x-3 rounded-md bg-gray-50 py-2 pl-2 pr-3 text-sm font-semibold leading-6 text-indigo-600">
+							Trigger Sites
+						</a>
+					</li>
+				</ul>
+			</nav>
+		</aside>
+		<main class="px-4 py-16 sm:px-6 lg:flex-auto lg:px-0 lg:py-20">
+			%sveltekit.body%
+		</main>
+	</body>
+</html>

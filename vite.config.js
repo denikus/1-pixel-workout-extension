@@ -1,0 +1,18 @@
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [sveltekit()],
+  // build: {
+  //   rollupOptions: {
+  //     input: 'src/routes/settings' // specify your entry point
+  //   }
+  // },
+  // Normally this would be unnecessary, but we
+  // need it for learn.svelte.dev
+  server: {
+    fs: {
+      strict: false
+    }
+  }
+});
