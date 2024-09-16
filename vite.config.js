@@ -8,11 +8,19 @@ export default defineConfig({
   //     input: 'src/routes/settings' // specify your entry point
   //   }
   // },
+  // build: {
+  //   rollupOptions: {
+  //     output: {
+  //       inlineDynamicImports: false,
+  //       manualChunks: undefined
+  //     }
+  //   }
+  // },
   // Normally this would be unnecessary, but we
   // need it for learn.svelte.dev
-  server: {
-    fs: {
-      strict: false
-    }
-  }
+  // server: {
+  //   fs: {
+  //     strict: false
+  //   }
+  // }
 });
