@@ -22,6 +22,13 @@
   },
   "type": "module",
   "dependencies": {
-    "@sveltejs/adapter-static": "^3.0.4"
+    "@sveltejs/adapter-static": "^3.0.4",
+    "bits-ui": "^0.21.15",
+    "clsx": "^2.1.1",
+    "embla-carousel-autoplay": "^8.3.0",
+    "embla-carousel-svelte": "^8.3.0",
+    "lucide-svelte": "^0.441.0",
+    "tailwind-merge": "^2.5.2",
+    "tailwind-variants": "^0.2.1"
   }
 }
