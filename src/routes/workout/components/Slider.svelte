@@ -39,6 +39,8 @@
     }
   ];
 
+  export let exerciseDurationValue = 30;
+
   class SwiperController {
     constructor() {
       this.swiper = null;
@@ -230,7 +232,7 @@
         type: "progressbar",
       },
       autoplay: {
-        delay: 3000,
+        delay: exerciseDurationValue * 1000,
         disableOnInteraction: false,
         stopOnLastSlide: true
       },
@@ -282,7 +284,7 @@
             {/each}
             <div class="swiper-slide">
                 <div class="bg-indigo-50 rounded-2xl min-h-96 flex flex-col justify-center items-center">
-                    <div bind:this={lastSlideTextTarget} class="text-3xl font-semibold text-indigo-600 p-5 text-center">dddddddddddddddd</div>
+                    <div bind:this={lastSlideTextTarget} class="text-3xl font-semibold text-indigo-600 p-5 text-center">Your 0 minutes 0 seconds workout is done!</div>
                     <div class="w-full relative h-auto p-5 max-w-sm mx-auto text-center">
                         <span class="mx-auto text-9xl">🎉</span>
                     </div>
@@ -316,7 +318,8 @@
             </button>
         </div>
         <div class="flex justify-end">
-            <button data-slider-target="stopButton" on:click={() => controller.stopWorkout()} data-action="click->slider#stopWorkout" type="button" class="ml-auto inline-flex items-center gap-x-2 rounded rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            <button data-slider-target="stopButton" on:click={() => controller.stopWorkout()} data-action="click->slider#stopWorkout" type="button"
+                    class="whitespace-nowrap ml-auto inline-flex items-center gap-x-2 rounded rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <rect x="5" y="5" width="10" height="10"></rect>
                 </svg>
