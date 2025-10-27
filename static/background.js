@@ -4,7 +4,7 @@ let cooldownUntil = 0;
 const COOLDOWN_PERIOD = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: '/settings.html' }); // Replace 'settings.html' with the correct path
+  chrome.tabs.create({ url: '/settings.html' });
 });
 
 // Listen for completed navigation events
