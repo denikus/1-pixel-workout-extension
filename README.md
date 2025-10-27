@@ -19,11 +19,12 @@ npm create svelte@latest my-app
 Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+npm run devext
 ```
+
+`npm run devext` - Runs nodemon that watches your source files and rebuilds on changes
+ Then you just need to go to your extension in chrome and click reload (so it'll take fresh code from `~/vhosts/1-minute-workout-extension/build`)
+
 
 ## Building
 
