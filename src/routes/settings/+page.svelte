@@ -40,7 +40,7 @@
 
     <form on:submit|preventDefault={saveData}>
         <div class="pt-6 sm:flex">
-            <textarea bind:value={triggerSites} rows="10" cols="30" class="textarea textarea-lg"></textarea>
+            <textarea bind:value={triggerSites} rows="10" cols="50" class="textarea textarea-lg"></textarea>
         </div>
         <div class="mt-6">
             <button type="submit" class="btn">Save</button>
