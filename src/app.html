@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="cupcake">
 	<head>
 		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
 		<title>1 Minute Workout</title>
 <!--		<link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png">-->
 <!--		<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicons/favicon-32x32.png">-->
@@ -16,7 +16,14 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
-		%sveltekit.body%
+		<div class="bg-white">
+			<main class="mx-auto w-full max-w-7xl px-6 pb-16 pt-10 sm:pb-24 lg:px-8">
+				%sveltekit.body%
+			</main>
 
+			<footer class="border-t border-gray-100 py-6 sm:py-10">
+
+			</footer>
+		</div>
 	</body>
 </html>
