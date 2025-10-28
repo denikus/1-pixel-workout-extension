@@ -9,6 +9,10 @@
     if (encodedUrl) {
       originalUrl = decodeURIComponent(encodedUrl);
     }
+    // Save to Chrome storage, so later can take it and make redirection
+    chrome.storage.local.set({ originalUrl: originalUrl }, () => {
+      console.log('Original URL saved to storage');
+    });
   });
 
   function handleSkip() {
