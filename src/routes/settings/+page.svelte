@@ -21,7 +21,7 @@
   function saveData() {
     // Split the text by newlines and trim each entry
     const sitesArray = triggerSites.split('\n').map(site => site.trim()).filter(site => site !== '');
-    console.log(sitesArray);
+    // console.log(sitesArray);
     chrome.storage.sync.set({ triggerSites: sitesArray }, () => {
       status = 'Saved securely in your browser. Your workout reminders are ready!';
       setTimeout(() => (status = ''), 4000);
