@@ -2,7 +2,8 @@
 
 let cooldownUntil = 0;
 const COOLDOWN_PERIOD = 15 * 60 * 1000; // 15 minutes in milliseconds
-const API_BASE_URL = "http://localhost:3000";
+// const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: '/settings.html' });
