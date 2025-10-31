@@ -12,6 +12,7 @@ chrome.action.onClicked.addListener(() => {
 // Listen for completed navigation events
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   
+  console.log('basic url to:', API_BASE_URL);
   if (details.url === `${API_BASE_URL}/back_to_extension`) {
       handleBackToExtension(details.tabId);
       return;
