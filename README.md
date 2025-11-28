@@ -36,7 +36,17 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+## Releasing on Chrome Web Store
+
+```shell
+cd ./build
+zip -r ../extension.zip .
+```
+
+Then add that package to: https://chrome.google.com/webstore/devconsole/REDACTED/REDACTED/edit/package .
+
+Then go to Distribution(https://chrome.google.com/webstore/devconsole/REDACTED/REDACTED/edit/distribution) and Click "Submit for Review".
+
 
 ## Issue with background.js compilation
 

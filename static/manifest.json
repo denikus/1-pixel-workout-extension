@@ -1,10 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "1 Minute Workout Extension",
-  "version": "0.0.3",
-  "description": "1 Minute Workout Extension",
+  "name": "1 Minute Workout",
+  "version": "0.0.0.2",
+  "description": "The site blocker that makes you stronger. Turn your worst habit into your fitness routine.",
   "action": {
-    "default_title": "1 Minute Workout"
+    "default_title": "1 Minute Workout",
+    "default_icon": {
+      "16": "favicon-16x16.png",
+      "32": "favicon-32x32.png",
+      "48": "favicon-48x48.png",
+      "128": "favicon-128x128.png"
+    }
   },
   "permissions": [
     "storage",

@@ -6,7 +6,7 @@
     "dev": "vite dev && vite build --config vite.background.config.js",
     "build:dev": "vite build --mode development && vite build --config vite.background.config.js --mode development",
     "devext": "nodemon --watch src --watch static --exec \"npm run build:dev\" -e json,css,html,svelte",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.background.config.js",
     "preview": "vite preview"
   },
   "devDependencies": {
