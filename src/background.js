@@ -33,34 +33,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  
 function startCooldown() {
   cooldownUntil = Date.now() + COOLDOWN_PERIOD;
-  console.log('Cooldown started until:', new Date(cooldownUntil));
+  chrome.storage.local.set({ cooldownUntil }, () => {
+    console.log('Cooldown persisted until:', new Date(cooldownUntil));
+  });
 }
 
-function isInCooldown() {
+async function isInCooldown() {
+  // Fast path: in-memory value is still valid
+  if (Date.now() < cooldownUntil) return true;
+
+  // Service worker may have restarted — check storage
+  const { cooldownUntil: stored } = await chrome.storage.local.get('cooldownUntil');
+  cooldownUntil = stored || 0;
+  
   return Date.now() < cooldownUntil;
 }
 
 // Function to check if the URL is in the trigger sites list
-function checkUrl(url, tabId) {
-  if (isInCooldown()) {
+async function checkUrl(url, tabId) {
+  if (await isInCooldown()) {
     console.log('In cooldown period, allowing navigation');
-    return; // Allow navigation during cooldown
+    return;
   }
-  chrome.storage.sync.get(['triggerSites'], (result) => {
-    const triggerSites = result.triggerSites || [];
-    const currentHostname = new URL(url).hostname;
 
-    if (triggerSites.some(site => currentHostname.includes(site))) {
-      console.log('Trigger site visited!:', url);
-      const encodedUrl = encodeURIComponent(url);
-      const redirectUrl = chrome.runtime.getURL(`preworkout.html?original=${encodedUrl}`);
-      console.log('Redirecting to:', redirectUrl);
-      // Add your logic here for when a trigger site is visited
-      // For example, you could show a notification or open your extension's popup
-      // Redirect to your extension page
-      chrome.tabs.update(tabId, { url: redirectUrl });
-    }
-  });
+  const { triggerSites } = await chrome.storage.sync.get('triggerSites'); 
+
+  const sites = triggerSites || [];
+  const currentHostname = new URL(url).hostname;
+
+  if (sites.some(site => currentHostname.includes(site))) {
+    console.log('Trigger site visited!:', url);
+    const encodedUrl = encodeURIComponent(url);
+    const redirectUrl = chrome.runtime.getURL(`preworkout.html?original=${encodedUrl}`);
+    console.log('Redirecting to:', redirectUrl);
+    chrome.tabs.update(tabId, { url: redirectUrl });
+  }
 }
 
 function handleBackToExtension(tabId) {
