@@ -18,13 +18,22 @@
   });
 
   function handleSkip() {
-    chrome.runtime.sendMessage({action: 'startCooldown'}, (response) => {
-      if (response.success) {
-        window.location.href = originalUrl;
+    chrome.runtime.sendMessage({action: 'startCooldown'}, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('Message error:', chrome.runtime.lastError.message);
       }
+      window.location.href = originalUrl;
     });
   }
 
+  function handleStartWorkout() {
+    chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
+      if (chrome.runtime.lastError) {
+        console.warn('Message error:', chrome.runtime.lastError.message);
+      }
+      window.location.href = workout_roulette_url;
+    });
+  }
 
 </script>
 
@@ -37,7 +46,7 @@
             <div class="text-center">
                 <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">Got a minute for your health?</h1>
                 <div class="mt-10 flex items-center justify-center gap-x-6">
-                    <a href="{workout_roulette_url}" class="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Start Workout</a>
+                    <button type="button" on:click={handleStartWorkout} class="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Start Workout</button>
                     <button type="button" on:click|preventDefault={handleSkip} class="text-sm font-semibold leading-6 text-gray-900">Skip</button>
                 </div>
             </div>

@@ -1,9 +1,148 @@
 // static/background.js
 
 let cooldownUntil = 0;
-const COOLDOWN_PERIOD = 15 * 60 * 1000; // 15 minutes in milliseconds
+const COOLDOWN_PERIOD_SKIP = 15 * 60 * 1000;     // 15 minutes for skip
+const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed workout
 // const API_BASE_URL = "http://localhost:3000";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+/**
+ * Get today's date as YYYY-MM-DD string in local timezone
+ */
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Check if the current day is in the activeWeekdays array
+ * @param {number[]} activeWeekdays - Array of day numbers (0=Sun, 6=Sat)
+ * @returns {boolean}
+ */
+function isActiveDay(activeWeekdays) {
+  const today = new Date().getDay(); // 0-6
+  return activeWeekdays.includes(today);
+}
+
+/**
+ * Check if current time is within the active time range
+ * @param {string} startTime - "HH:MM" format
+ * @param {string} endTime - "HH:MM" format
+ * @returns {boolean}
+ */
+function isWithinActiveTime(startTime, endTime) {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  // Handle overnight ranges (e.g., 22:00 to 06:00)
+  if (endMinutes < startMinutes) {
+    // Active if current time is after start OR before end
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  }
+
+  // Normal range (e.g., 09:00 to 18:00)
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+
+/**
+ * Check if daily interruption limit has been reached
+ * Returns true if the extension should be active (limit not reached)
+ * @returns {Promise<boolean>}
+ */
+async function checkDailyLimit() {
+  const { maxInterruptionsPerDay } = await chrome.storage.sync.get('maxInterruptionsPerDay');
+
+  // If 0 or not set, unlimited
+  if (!maxInterruptionsPerDay || maxInterruptionsPerDay <= 0) {
+    return true;
+  }
+
+  const { dailyInterruptionCount, lastInterruptionDate } =
+    await chrome.storage.local.get(['dailyInterruptionCount', 'lastInterruptionDate']);
+
+  const today = getTodayDateString();
+
+  // Reset count if it's a new day
+  if (lastInterruptionDate !== today) {
+    await chrome.storage.local.set({
+      dailyInterruptionCount: 0,
+      lastInterruptionDate: today
+    });
+    return true;
+  }
+
+  // Check if limit reached
+  const currentCount = dailyInterruptionCount || 0;
+  return currentCount < maxInterruptionsPerDay;
+}
+
+/**
+ * Increment the daily interruption counter
+ */
+async function incrementDailyCount() {
+  const { dailyInterruptionCount, lastInterruptionDate } =
+    await chrome.storage.local.get(['dailyInterruptionCount', 'lastInterruptionDate']);
+
+  const today = getTodayDateString();
+
+  // Reset if new day, otherwise increment
+  const newCount = (lastInterruptionDate === today)
+    ? (dailyInterruptionCount || 0) + 1
+    : 1;
+
+  await chrome.storage.local.set({
+    dailyInterruptionCount: newCount,
+    lastInterruptionDate: today
+  });
+
+  console.log(`Daily interruption count: ${newCount}`);
+}
+
+/**
+ * Check if the extension should be active based on all schedule settings
+ * @returns {Promise<boolean>}
+ */
+async function isExtensionActive() {
+  const settings = await chrome.storage.sync.get([
+    'activeWeekdays',
+    'activeTimeStart',
+    'activeTimeEnd'
+  ]);
+
+  // Use defaults if not set (weekdays 9am-6pm)
+  const activeWeekdays = settings.activeWeekdays ?? [1, 2, 3, 4, 5];
+  const activeTimeStart = settings.activeTimeStart ?? '09:00';
+  const activeTimeEnd = settings.activeTimeEnd ?? '18:00';
+
+  // Check day
+  if (!isActiveDay(activeWeekdays)) {
+    console.log('Extension inactive: not an active day');
+    return false;
+  }
+
+  // Check time
+  if (!isWithinActiveTime(activeTimeStart, activeTimeEnd)) {
+    console.log('Extension inactive: outside active hours');
+    return false;
+  }
+
+  // Check daily limit
+  if (!(await checkDailyLimit())) {
+    console.log('Extension inactive: daily limit reached');
+    return false;
+  }
+
+  return true;
+}
 
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: '/settings.html' });
@@ -28,11 +167,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startCooldown') {
     startCooldown();
     sendResponse({success: true});
+    return true;
+  }
+  if (message.action === 'startWorkout') {
+    // Start cooldown immediately when workout begins
+    startCooldown(COOLDOWN_PERIOD_WORKOUT);
+    incrementDailyCount().then(() => {
+      sendResponse({success: true});
+    });
+    return true;
+  }
+  if (message.action === 'incrementDailyCount') {
+    incrementDailyCount().then(() => {
+      sendResponse({success: true});
+    });
+    return true;
   }
 });
  
-function startCooldown() {
-  cooldownUntil = Date.now() + COOLDOWN_PERIOD;
+function startCooldown(duration = COOLDOWN_PERIOD_SKIP) {
+  cooldownUntil = Date.now() + duration;
   chrome.storage.local.set({ cooldownUntil }, () => {
     console.log('Cooldown persisted until:', new Date(cooldownUntil));
   });
@@ -51,18 +205,26 @@ async function isInCooldown() {
 
 // Function to check if the URL is in the trigger sites list
 async function checkUrl(url, tabId) {
+  // Check cooldown first (fastest check)
   if (await isInCooldown()) {
     console.log('In cooldown period, allowing navigation');
     return;
   }
 
-  const { triggerSites } = await chrome.storage.sync.get('triggerSites'); 
+  // Check if extension should be active (schedule + daily limit)
+  if (!(await isExtensionActive())) {
+    console.log('Extension inactive, allowing navigation');
+    return;
+  }
+
+  const { triggerSites } = await chrome.storage.sync.get('triggerSites');
 
   const sites = triggerSites || [];
   const currentHostname = new URL(url).hostname;
 
   if (sites.some(site => currentHostname.includes(site))) {
     console.log('Trigger site visited!:', url);
+
     const encodedUrl = encodeURIComponent(url);
     const redirectUrl = chrome.runtime.getURL(`preworkout.html?original=${encodedUrl}`);
     console.log('Redirecting to:', redirectUrl);
@@ -76,8 +238,8 @@ function handleBackToExtension(tabId) {
       
       console.log('Redirecting back to:', result.originalUrl);
       
-      // Start cooldown BEFORE redirecting back
-      startCooldown();
+      // Start cooldown BEFORE redirecting back (longer duration for completed workout)
+      startCooldown(COOLDOWN_PERIOD_WORKOUT);
       
       // Redirect to the original URL
       chrome.tabs.update(tabId, { url: result.originalUrl });

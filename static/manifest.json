@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "1 Minute Workout",
-  "version": "0.0.0.3",
+  "version": "0.0.0.5",
   "description": "The site blocker that makes you stronger. Turn your worst habit into your fitness routine.",
   "action": {
     "default_title": "1 Minute Workout",
