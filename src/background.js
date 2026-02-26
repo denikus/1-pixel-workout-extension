@@ -7,6 +7,15 @@ const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed work
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
+ * Show settings page to the user, so he can start using extension
+ */
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: '/settings.html' });
+  }
+});
+
+/**
  * Get today's date as YYYY-MM-DD string in local timezone
  */
 function getTodayDateString() {
@@ -145,7 +154,7 @@ async function isExtensionActive() {
 }
 
 chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: '/settings.html' });
+  chrome.tabs.create({ url: '/preworkout.html' });
 });
 
 // Listen for completed navigation events
@@ -249,9 +258,8 @@ function handleBackToExtension(tabId) {
         console.log('Original URL removed from storage');
       });
     } else {
-      console.log('No original URL found in storage');
-      // Optionally redirect to a default page or close the tab
-      // chrome.tabs.remove(tabId);
+      console.log('No original URL found in storage, closing tab');
+      chrome.tabs.remove(tabId);
     }
   });
 }

@@ -9,8 +9,6 @@
   let editingValue = '';
   let validationError = '';
   let editValidationError = '';
-
-  // Status message
   let status = '';
 
   // Daily Limits
@@ -53,7 +51,10 @@
 
   // Save sites to storage (auto-save on add/edit/delete)
   function saveSitesToStorage() {
-    chrome.storage.sync.set({ triggerSites: sites });
+    chrome.storage.sync.set({ triggerSites: sites }, () => {
+      status = 'Sites saved';
+      setTimeout(() => (status = ''), 2000);
+    });
   }
 
   // Validate a site input
@@ -128,17 +129,16 @@
     editValidationError = '';
   }
 
-  // Save all settings (used by the main form)
-  function saveData() {
+  // Auto-save non-site settings to storage
+  function autoSaveSettings() {
     chrome.storage.sync.set({
-      triggerSites: sites,
       maxInterruptionsPerDay,
       activeWeekdays,
       activeTimeStart,
       activeTimeEnd
     }, () => {
-      status = 'You\'re all set! Ready when you are.';
-      setTimeout(() => (status = ''), 4000);
+      status = 'Settings saved';
+      setTimeout(() => (status = ''), 2000);
     });
   }
 
@@ -149,6 +149,7 @@
     } else {
       activeWeekdays = [...activeWeekdays, day].sort((a, b) => a - b);
     }
+    autoSaveSettings();
   }
 
   // Check if a weekday is active
@@ -170,7 +171,7 @@
   }
 </script>
 
-<div class="space-y-8">
+<div class="space-y-8 mx-auto w-full max-w-7xl px-6 pb-16 pt-10 sm:pb-24 lg:px-8">
   <!-- Page Header -->
   <div>
     <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
@@ -179,7 +180,7 @@
     </p>
   </div>
 
-  <form on:submit|preventDefault={saveData} class="space-y-6">
+  <div class="space-y-6">
 
     <!-- Section 1: Distraction Sites -->
     <div class="card bg-base-100 shadow">
@@ -319,6 +320,7 @@
             max="100"
             class="input input-bordered w-16"
             placeholder="0"
+            on:change={autoSaveSettings}
           />
           <label class="label">
             <span class="label-text-alt text-gray-400">
@@ -393,6 +395,7 @@
                 type="time"
                 bind:value={activeTimeStart}
                 class="input input-bordered"
+                on:change={autoSaveSettings}
               />
             </div>
             <span class="text-gray-500 mt-6">to</span>
@@ -404,6 +407,7 @@
                 type="time"
                 bind:value={activeTimeEnd}
                 class="input input-bordered"
+                on:change={autoSaveSettings}
               />
             </div>
           </div>
@@ -416,13 +420,7 @@
       </div>
     </div>
 
-    <!-- Save Button -->
-    <div class="flex justify-end">
-      <button type="submit" class="btn btn-primary">
-        Save All Settings
-      </button>
-    </div>
-  </form>
+  </div>
 </div>
 
 {#if status}
@@ -432,3 +430,10 @@
     </div>
   </div>
 {/if}
+
+<style>
+  :global(html), :global(body) {
+    background: #f0eef8;
+    margin: 0;
+  }
+</style>
