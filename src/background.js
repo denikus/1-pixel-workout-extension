@@ -3,8 +3,6 @@
 let cooldownUntil = 0;
 const COOLDOWN_PERIOD_SKIP = 15 * 60 * 1000;     // 15 minutes for skip
 const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed workout
-// const API_BASE_URL = "http://localhost:3000";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Show settings page to the user, so he can start using extension
@@ -160,14 +158,17 @@ chrome.action.onClicked.addListener(() => {
 // Listen for completed navigation events
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   
-  console.log('basic url to:', API_BASE_URL);
-  if (details.url === `${API_BASE_URL}/back_to_extension`) {
-      handleBackToExtension(details.tabId);
-      return;
-  } 
   // We only care about the main frame (not iframes)
   if (details.frameId === 0) {
     checkUrl(details.url, details.tabId);
+  }
+});
+
+// Listen for messages from the workout site (externally_connectable)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.action === 'workoutComplete') {
+    handleBackToExtension(sender.tab.id);
+    sendResponse({ success: true });
   }
 });
 
@@ -251,7 +252,13 @@ function handleBackToExtension(tabId) {
       startCooldown(COOLDOWN_PERIOD_WORKOUT);
       
       // Redirect to the original URL
-      chrome.tabs.update(tabId, { url: result.originalUrl });
+      chrome.tabs.update(tabId, { url: result.originalUrl }, (tab) => {
+        if (chrome.runtime.lastError) {
+          console.error('tabs.update FAILED:', chrome.runtime.lastError.message);
+        } else {
+          console.log('tabs.update SUCCESS, tab:', tab?.id);
+        }
+      });
       
       // Clean up the storage
       chrome.storage.local.remove(['originalUrl'], () => {

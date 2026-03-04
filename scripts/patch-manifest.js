@@ -15,6 +15,7 @@ const hostPattern = `${apiUrl.protocol}//${apiUrl.host}/*`;
 
 const manifest = JSON.parse(readFileSync('build/manifest.json', 'utf-8'));
 manifest.host_permissions = [hostPattern];
+manifest.externally_connectable = { matches: [hostPattern] };
 writeFileSync('build/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 
 console.log(`Patched manifest.json with host_permissions: [${hostPattern}]`);
