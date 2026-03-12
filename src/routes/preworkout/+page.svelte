@@ -17,9 +17,7 @@
     }
     base_workout_url = `${import.meta.env.VITE_API_BASE_URL}/workouts/roulette?source=extension${wasIntercepted ? '&intercepted=true' : ''}`;
     if (wasIntercepted) {
-      chrome.storage.local.set({ originalUrl: originalUrl }, () => {
-        console.log('Original URL saved to storage');
-      });
+      chrome.storage.local.set({ originalUrl: originalUrl });
     }
 
     try {
@@ -28,25 +26,34 @@
       });
       const data = await res.json();
       isSignedIn = data.authenticated;
-    } catch (e) {
-      console.warn('Auth check failed:', e);
+    } catch {
+      // Auth check failed — default to signed-in experience
     }
     authLoaded = true;
   });
 
+  function isSafeUrl(url) {
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:'].includes(parsed.protocol);
+    } catch { return false; }
+  }
+
   function handleSkip() {
     chrome.runtime.sendMessage({action: 'startCooldown'}, () => {
       if (chrome.runtime.lastError) {
-        console.warn('Message error:', chrome.runtime.lastError.message);
+        // Message delivery failed
       }
-      window.location.href = originalUrl;
+      if (isSafeUrl(originalUrl)) {
+        window.location.href = originalUrl;
+      }
     });
   }
 
   function handleStartWorkout(workoutType) {
     chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
       if (chrome.runtime.lastError) {
-        console.warn('Message error:', chrome.runtime.lastError.message);
+        // Message delivery failed
       }
       window.location.href = `${base_workout_url}&workout_type=${workoutType}`;
     });
@@ -55,7 +62,7 @@
   function handleDashboardWorkout() {
     chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
       if (chrome.runtime.lastError) {
-        console.warn('Message error:', chrome.runtime.lastError.message);
+        // Message delivery failed
       }
       window.location.href = `${import.meta.env.VITE_API_BASE_URL}/dashboard`;
     });

@@ -1,5 +1,12 @@
 // static/background.js
 
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch { return false; }
+}
+
 let cooldownUntil = 0;
 const COOLDOWN_PERIOD_SKIP = 15 * 60 * 1000;     // 15 minutes for skip
 const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed workout
@@ -110,8 +117,6 @@ async function incrementDailyCount() {
     dailyInterruptionCount: newCount,
     lastInterruptionDate: today
   });
-
-  console.log(`Daily interruption count: ${newCount}`);
 }
 
 /**
@@ -132,19 +137,16 @@ async function isExtensionActive() {
 
   // Check day
   if (!isActiveDay(activeWeekdays)) {
-    console.log('Extension inactive: not an active day');
     return false;
   }
 
   // Check time
   if (!isWithinActiveTime(activeTimeStart, activeTimeEnd)) {
-    console.log('Extension inactive: outside active hours');
     return false;
   }
 
   // Check daily limit
   if (!(await checkDailyLimit())) {
-    console.log('Extension inactive: daily limit reached');
     return false;
   }
 
@@ -197,9 +199,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  
 function startCooldown(duration = COOLDOWN_PERIOD_SKIP) {
   cooldownUntil = Date.now() + duration;
-  chrome.storage.local.set({ cooldownUntil }, () => {
-    console.log('Cooldown persisted until:', new Date(cooldownUntil));
-  });
+  chrome.storage.local.set({ cooldownUntil });
 }
 
 async function isInCooldown() {
@@ -216,56 +216,35 @@ async function isInCooldown() {
 // Function to check if the URL is in the trigger sites list
 async function checkUrl(url, tabId) {
   // Check cooldown first (fastest check)
-  if (await isInCooldown()) {
-    console.log('In cooldown period, allowing navigation');
-    return;
-  }
+  if (await isInCooldown()) return;
 
   // Check if extension should be active (schedule + daily limit)
-  if (!(await isExtensionActive())) {
-    console.log('Extension inactive, allowing navigation');
-    return;
-  }
+  if (!(await isExtensionActive())) return;
 
   const { triggerSites } = await chrome.storage.sync.get('triggerSites');
 
   const sites = triggerSites || [];
   const currentHostname = new URL(url).hostname;
 
-  if (sites.some(site => currentHostname.includes(site))) {
-    console.log('Trigger site visited!:', url);
-
+  if (sites.some(site => currentHostname === site || currentHostname.endsWith('.' + site))) {
     const encodedUrl = encodeURIComponent(url);
     const redirectUrl = chrome.runtime.getURL(`preworkout.html?original=${encodedUrl}`);
-    console.log('Redirecting to:', redirectUrl);
     chrome.tabs.update(tabId, { url: redirectUrl });
   }
 }
 
 function handleBackToExtension(tabId) {
   chrome.storage.local.get(['originalUrl'], (result) => {
-    if (result.originalUrl) {
-      
-      console.log('Redirecting back to:', result.originalUrl);
-      
+    if (result.originalUrl && isSafeUrl(result.originalUrl)) {
       // Start cooldown BEFORE redirecting back (longer duration for completed workout)
       startCooldown(COOLDOWN_PERIOD_WORKOUT);
-      
+
       // Redirect to the original URL
-      chrome.tabs.update(tabId, { url: result.originalUrl }, (tab) => {
-        if (chrome.runtime.lastError) {
-          console.error('tabs.update FAILED:', chrome.runtime.lastError.message);
-        } else {
-          console.log('tabs.update SUCCESS, tab:', tab?.id);
-        }
-      });
-      
+      chrome.tabs.update(tabId, { url: result.originalUrl });
+
       // Clean up the storage
-      chrome.storage.local.remove(['originalUrl'], () => {
-        console.log('Original URL removed from storage');
-      });
+      chrome.storage.local.remove(['originalUrl']);
     } else {
-      console.log('No original URL found in storage, closing tab');
       chrome.tabs.remove(tabId);
     }
   });
