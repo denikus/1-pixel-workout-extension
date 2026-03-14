@@ -1,5 +1,7 @@
 // static/background.js
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 function isSafeUrl(url) {
   try {
     const parsed = new URL(url);
@@ -50,6 +52,10 @@ function isActiveDay(activeWeekdays) {
 function isWithinActiveTime(startTime, endTime) {
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (!/^\d{1,2}:\d{2}$/.test(startTime) || !/^\d{1,2}:\d{2}$/.test(endTime)) {
+    return true; // default to active if time format is invalid
+  }
 
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
@@ -168,6 +174,10 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 
 // Listen for messages from the workout site (externally_connectable)
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (!sender.url || !sender.url.startsWith(API_BASE_URL)) {
+    sendResponse({ success: false, error: 'unauthorized' });
+    return;
+  }
   if (message.action === 'workoutComplete') {
     handleBackToExtension(sender.tab.id);
     sendResponse({ success: true });
@@ -223,7 +233,7 @@ async function checkUrl(url, tabId) {
 
   const { triggerSites } = await chrome.storage.sync.get('triggerSites');
 
-  const sites = triggerSites || [];
+  const sites = Array.isArray(triggerSites) ? triggerSites : [];
   const currentHostname = new URL(url).hostname;
 
   if (sites.some(site => currentHostname === site || currentHostname.endsWith('.' + site))) {

@@ -27,7 +27,7 @@
       const data = await res.json();
       isSignedIn = data.authenticated;
     } catch {
-      // Auth check failed — default to signed-in experience
+      isSignedIn = false;
     }
     authLoaded = true;
   });
@@ -55,7 +55,7 @@
       if (chrome.runtime.lastError) {
         // Message delivery failed
       }
-      window.location.href = `${base_workout_url}&workout_type=${workoutType}`;
+      window.location.href = `${base_workout_url}&workout_type=${encodeURIComponent(workoutType)}`;
     });
   }
 

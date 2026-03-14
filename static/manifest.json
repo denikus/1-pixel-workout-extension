@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "1 Pixel Workout",
-  "version": "0.0.0.14",
-  "description": "The site blocker that makes you stronger. Turn your worst habit into your fitness routine.",
+  "version": "0.0.0.15",
+  "description": "The site blocker that makes you stronger. Turn your doomscrolling into your fitness routine.",
   "action": {
     "default_title": "1 Pixel Workout",
     "default_icon": {

@@ -1,138 +1,127 @@
-# create-svelte
+# 1 Pixel Workout — Chrome Extension
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+A Chrome extension that turns your distraction sites into workout reminders. Instead of mindlessly scrolling Twitter, Reddit, or Instagram, you get a quick workout prompt first — a short exercise to fix your posture and reset your focus. No gym, no sweat, done between meetings. Workouts are served by [1 Pixel Workout](https://1pixelworkout.com) — a library of quick desk-friendly exercises. Free to use, with a Pro tier for unlimited workouts.
 
-## Creating a project
+Built for desk workers, remote employees, and anyone who spends too much time sitting at a computer.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## How It Works
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+You add your guilty-pleasure sites — social media, news, YouTube, whatever pulls you in when you have free time. Then, each time you visit one of those sites, the extension intercepts the page and suggests a quick workout instead.
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+It's a site blocker, but instead of blocking you outright, it nudges you to move your body first.
 
-## Developing
+- **Start a workout** — opens a short exercise (takes about a minute), then returns you to the page you were trying to visit. Reminders pause for 30 minutes.
+- **Skip** — go straight to the site, no judgment. Reminders pause for 15 minutes.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Your list of distraction sites stays on your device. Nothing is sent to any server. See for yourself.
+
+## Who Is This For
+
+- **Desk workers** who sit 8+ hours a day and forget to move
+- **Remote workers** looking for a simple way to break up long screen sessions
+- **Anyone trying to build a movement habit** without committing to a gym routine
+- **People interested in exercise snacks** — short bursts of activity spread throughout the day
+
+## Features
+
+- Customizable list of distraction sites (add or remove anytime)
+- Quick workout suggestions powered by [1 Pixel Workout](https://1pixelworkout.com)
+- Smart cooldown (30 min after workout, 15 min after skip) so the extension doesn't get annoying
+- Works with any Chromium-based browser (Chrome, Edge, Brave, Arc)
+- No account required for basic use. Get more workouts with a free account. Unlimited workouts with Pro subscription.
+- Privacy-first: your site list is stored locally in your browser, never transmitted
+
+## Install
+
+Available on the [Chrome Web Store](https://chromewebstore.google.com/detail/1-pixel-workout/ahocnpijhgajachomdcapboenkjdodmb).
+
+## Contributing
+
+The extension relies on the [1pixelworkout.com](https://1pixelworkout.com) backend to serve workouts and handle the post-workout return flow. You can run the extension locally for UI and interception logic development — workout links will point to the production server by default.
+
+To set up a local dev environment:
+
+1. Clone this repo
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env` (defaults to production API)
+4. Build the extension: `npm run build`
+5. Open `chrome://extensions/` in your browser
+6. Enable "Developer mode"
+7. Click "Load unpacked" and select the `build/` folder
+
+## Tech Stack
+
+- [Svelte](https://svelte.dev/) + [SvelteKit](https://kit.svelte.dev/) (static adapter for extension pages)
+- [Vite](https://vitejs.dev/) for builds
+- Chrome Extension Manifest V3
+- `chrome.storage.sync` for settings, `chrome.webNavigation` for interception
+
+### Development
+
+After cloning and installing dependencies:
 
 ```bash
 npm run devext
 ```
 
-`npm run devext` - Runs nodemon that watches your source files and rebuilds on changes
- Then you just need to go to your extension in chrome and click reload (so it'll take fresh code from `~/vhosts/1-minute-workout-extension/build`)
+This runs nodemon watching your source files. After changes, reload the extension in `chrome://extensions/` to pick up the new build.
 
-
-## Building
-
-To create a production version of your app:
+### Building for production
 
 ```bash
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+### Packaging for Chrome Web Store
 
-## Releasing on Chrome Web Store
-
-```shell
+```bash
 cd ./build
 zip -r ../extension.zip .
 ```
 
-Then add that package to: https://chrome.google.com/webstore/devconsole/REDACTED/REDACTED/edit/package .
+Upload the zip via the [Chrome Web Store Developer Console](https://chrome.google.com/webstore/devconsole/).
 
-Then go to Distribution(https://chrome.google.com/webstore/devconsole/REDACTED/REDACTED/edit/distribution) and Click "Submit for Review".
+### Environment variables
 
+Set `VITE_API_BASE_URL` in your `.env` file. This controls:
+- The workout URL shown on the pre-workout page
+- The callback URL for returning to the original page after a workout
 
-## Issue with background.js compilation
+### Architecture notes
 
-I needed to pass env variable to background.js script (basic url for my sass, which on development is just localhost:3000).
-But as background.js was in static folder, nether npm nor vite didn't compile it, so it couldn't access .env variables.
+The extension has three main pieces:
 
-So, temp solution is to move background.js to /src folder run additional command t build this file. Also, there is additional config file for vite: vite.background.config.js.
+- **Background service worker** (`src/background.js`) — handles navigation interception, cooldown logic, and the post-workout return flow
+- **Settings page** (`src/routes/settings/+page.svelte`) — UI for managing your distraction site list
+- **Pre-workout page** (`src/routes/preworkout/+page.svelte`) — the interception screen with Start Workout and Skip options
 
-It's a bit smelly code, but works for now.
+Background script is built separately via `vite.background.config.js` since SvelteKit doesn't compile service workers directly.
 
-Other solutions: crxjs plugin for vite, but it doesn't work with sveltekit.
-Overall, AI suggested to remove sveltekit and use just svelte and crxjs with plain vite and svelte, it will simplify everything. 
-But I'm not sure for now. Probably later will do.
+## Related
 
-## General user flow of extension (non-tech explanation)
+- [1 Pixel Workout](https://1pixelworkout.com) — the web app with the full workout library
+- Built as part of a [building-in-public](https://1pixelworkout.com/blog) project
 
-- **Open settings**: Click the extension icon in your browser toolbar. This opens the settings page where you can manage your list of distraction sites.
-- **Add distraction sites**: Enter sites (one per line) where you'd like a gentle reminder (e.g., social media or news sites), then click Save. These are stored locally in your browser only.
-- **Browsing interception**: When you navigate to any saved site, the extension briefly intercepts the page and shows a 1‑minute workout suggestion screen.
-  - **Start Workout**: Opens a quick workout in a new page. When it finishes and sends you back, you’ll automatically return to the page you were trying to visit.
-  - **Skip**: Instantly returns you to the page you were trying to visit.
-- **Cooldown**: After starting a workout or skipping, the extension pauses reminders for 15 minutes so you can browse uninterrupted.
-- **Update anytime**: Reopen the settings from the toolbar to adjust your distraction list.
+## License
 
-Notes:
-- Your distraction sites never leave your device; they’re saved in browser storage only.
-- You can always reload the extension from `build/` during development (see Developing above).
+The MIT License
 
-## General user flow of extension (tech explanation)
- 
-- **Entry points & build outputs**
-  - Manifest: `static/manifest.json` (MV3). Declares `storage`, `webNavigation`, and background `service_worker: background.js`.
-  - Background worker: `src/background.js` → built to `build/background.js` via `vite.background.config.js`.
-  - Pages: SvelteKit routes compile to HTML in `build/`:
-    - `src/routes/settings/+page.svelte` → `build/settings.html`
-    - `src/routes/preworkout/+page.svelte` → `build/preworkout.html`
+Copyright (c) 2025-2026 Denys
 
-- **Open settings from toolbar**
-  - File: `src/background.js`
-  - Logic: `chrome.action.onClicked` → `chrome.tabs.create({ url: '/settings.html' })`
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-- **Manage distraction sites (read/write)**
-  - File: `src/routes/settings/+page.svelte`
-  - Read: `onMount` → `chrome.storage.sync.get(['triggerSites'])`
-  - Write: `saveData()` → `chrome.storage.sync.set({ triggerSites: string[] })`
-  - Storage scope: `chrome.storage.sync` (syncs per browser profile)
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-- **Interception on navigation**
-  - File: `src/background.js`
-  - Event: `chrome.webNavigation.onBeforeNavigate` (main frame only)
-  - Cooldown gate: `isInCooldown()` prevents interception during cooldown window
-  - URL check: `checkUrl(url, tabId)`
-    - Loads `triggerSites` from `chrome.storage.sync`
-    - Compares `new URL(url).hostname` against any `site` using `includes`
-    - On match: builds `preworkout.html?original=<encoded>` and `chrome.tabs.update` to redirect
-
-- **Pre‑workout page behavior**
-  - File: `src/routes/preworkout/+page.svelte`
-  - On mount: reads `original` from query string, saves to `chrome.storage.local.set({ originalUrl })`
-  - Start Workout: `href` points to `${import.meta.env.VITE_API_BASE_URL}/workouts/roulette?source=extension&intercepted=true`
-  - Skip: sends `chrome.runtime.sendMessage({ action: 'startCooldown' })`, then `window.location.href = originalUrl`
-
-- **Cooldown implementation (15 minutes)**
-  - File: `src/background.js`
-  - Constants/state: `COOLDOWN_PERIOD = 15 * 60 * 1000`, `cooldownUntil`
-  - API:
-    - `startCooldown()` sets `cooldownUntil = Date.now() + COOLDOWN_PERIOD`
-    - `isInCooldown()` returns `Date.now() < cooldownUntil`
-  - Triggers:
-    - Message listener: `chrome.runtime.onMessage` with `{ action: 'startCooldown' }`
-    - Post‑workout return handler below also starts cooldown
-
-- **Return from workout to original page**
-  - File: `src/background.js`
-  - Env: `API_BASE_URL = import.meta.env.VITE_API_BASE_URL`
-  - Detect callback: within `onBeforeNavigate`, if `details.url === `${API_BASE_URL}/back_to_extension`` → `handleBackToExtension(tabId)`
-  - Handler: reads `originalUrl` from `chrome.storage.local`, calls `startCooldown()`, redirects tab back via `chrome.tabs.update`, then removes `originalUrl`
-
-- **Environment configuration**
-  - `VITE_API_BASE_URL` consumed in:
-    - `src/routes/preworkout/+page.svelte` (build workout URL)
-    - `src/background.js` (match `/back_to_extension` callback)
-  - Configure via Vite/SvelteKit env (e.g., `.env` during dev/build)
-
-- **Where to modify behavior quickly**
-  - Cooldown duration: edit `COOLDOWN_PERIOD` in `src/background.js`
-  - Matching logic: adjust hostname matching in `checkUrl()` in `src/background.js`
-  - Storage model/UI: update `src/routes/settings/+page.svelte`
-  - Preworkout UX and actions: update `src/routes/preworkout/+page.svelte`
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
