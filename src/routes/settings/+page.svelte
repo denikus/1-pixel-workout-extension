@@ -65,6 +65,12 @@
       return 'Please enter a domain name';
     }
 
+    // Validate domain format
+    const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+    if (!domainRegex.test(normalized)) {
+      return 'Please enter a valid domain (e.g., facebook.com)';
+    }
+
     // Check for duplicates (excluding current edit index)
     const isDuplicate = sites.some((site, i) =>
       i !== excludeIndex && site === normalized
@@ -320,6 +326,7 @@
             max="100"
             class="input input-bordered w-16"
             placeholder="0"
+            on:input={(e) => { e.target.value = e.target.value.replace(/[^0-9]/g, ''); maxInterruptionsPerDay = Math.min(100, parseInt(e.target.value) || 0); }}
             on:change={autoSaveSettings}
           />
           <label class="label">

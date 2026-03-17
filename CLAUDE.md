@@ -14,6 +14,8 @@ npm run devext
 ```
 Runs nodemon that watches `src/` and `static/` directories, automatically rebuilding on changes. After changes, reload the extension in Chrome at `chrome://extensions/` to see updates.
 
+- Do NOT run `npm run build` or suggest running it on local machine. The build process is automated and triggers automatically on file changes.
+
 ### Production Build
 ```bash
 npm run build

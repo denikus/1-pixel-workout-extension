@@ -18,7 +18,7 @@ const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed work
  */
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    chrome.tabs.create({ url: '/settings.html' });
+    chrome.tabs.create({ url: '/onboarding.html' });
   }
 });
 
