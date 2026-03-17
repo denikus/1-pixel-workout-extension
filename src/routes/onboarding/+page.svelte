@@ -2,6 +2,31 @@
   import { onMount } from 'svelte';
   import { Plus, X } from 'lucide-svelte';
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  let installUuid = null;
+  let firstSiteEventSent = false;
+
+  // Anonymous statistics only — sends a random install UUID and event name, no personal data
+  function sendEvent(eventName) {
+    if (!installUuid) return;
+    fetch(`${API_BASE_URL}/extension_stats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        extension_event: {
+          install_uuid: installUuid,
+          event_name: eventName
+        }
+      })
+    }).catch(() => {});
+  }
+
+  function handleComplete() {
+    // Anonymous statistics only — no personal data is sent
+    sendEvent('onboarding_finished');
+    chrome.storage.local.set({ onboardingComplete: true }, () => window.close());
+  }
+
   // Sites management
   let sites = [];
   let newSiteInput = '';
@@ -29,6 +54,26 @@
   ];
 
   onMount(() => {
+    // Check if onboarding already completed — redirect to settings
+    chrome.storage.local.get(['onboardingComplete', 'installUuid', 'firstSiteAdded'], (result) => {
+      if (result.onboardingComplete) {
+        window.location.href = '/settings.html';
+        return;
+      }
+
+      // Read UUID (with fallback generation for existing installs)
+      installUuid = result.installUuid;
+      if (!installUuid) {
+        installUuid = crypto.randomUUID();
+        chrome.storage.local.set({ installUuid });
+      }
+
+      firstSiteEventSent = !!result.firstSiteAdded;
+
+      // Anonymous statistics only — no personal data is sent
+      sendEvent('onboarding_started');
+    });
+
     chrome.storage.sync.get([
       'triggerSites',
       'maxInterruptionsPerDay',
@@ -94,6 +139,13 @@
     sites = [normalized, ...sites]; // Add to beginning
     newSiteInput = '';
     saveSitesToStorage();
+
+    if (!firstSiteEventSent) {
+      firstSiteEventSent = true;
+      chrome.storage.local.set({ firstSiteAdded: true });
+      // Anonymous statistics only — no personal data is sent
+      sendEvent('first_site_added');
+    }
   }
 
   // Remove a site
@@ -258,7 +310,7 @@
             <p class="text-xl text-gray-600 leading-10">That's it! Two ways to work out now:</p>
             <p class="text-xl text-gray-600 mt-4 leading-10">🧩 Click our icon in the toolbar — anytime you want</p>
             <p class="text-xl text-gray-600 mt-4 leading-10">🫠 Visit your rabbit hole sites — we'll catch you there</p>
-            <button type="button" class="btn btn-primary btn-lg mt-4 text-white" on:click={() => { chrome.storage.local.set({ onboardingComplete: true }, () => window.close()); }}>Got it 👍</button>
+            <button type="button" class="btn btn-primary btn-lg mt-4 text-white" on:click={handleComplete}>Got it 👍</button>
           </div>
         {/if}
       </div>

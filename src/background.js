@@ -16,9 +16,17 @@ const COOLDOWN_PERIOD_WORKOUT = 30 * 60 * 1000; // 30 minutes for completed work
 /**
  * Show settings page to the user, so he can start using extension
  */
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
+    const installUuid = crypto.randomUUID();
+    await chrome.storage.local.set({ installUuid });
     chrome.tabs.create({ url: '/onboarding.html' });
+  } else if (details.reason === 'update') {
+    // Backfill UUID for existing installs
+    const { installUuid } = await chrome.storage.local.get('installUuid');
+    if (!installUuid) {
+      await chrome.storage.local.set({ installUuid: crypto.randomUUID() });
+    }
   }
 });
 
