@@ -81,6 +81,17 @@ zip -r ../extension.zip .
 
 Upload the zip via the [Chrome Web Store Developer Console](https://chrome.google.com/webstore/devconsole/).
 
+### Release on github
+
+Eample:
+
+```bash
+git add .
+git commit -m "Add workout timer improvements"
+git push origin main
+gh release create v1.0.1.0 --title "v1.0.1.0" --notes "Add workout timer improvements"
+```
+
 ### Environment variables
 
 Set `VITE_API_BASE_URL` in your `.env` file. This controls:
