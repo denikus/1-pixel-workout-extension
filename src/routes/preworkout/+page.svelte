@@ -75,7 +75,7 @@
   </div>
 
   <div class="flex-1 flex flex-col items-center justify-center gap-7 px-5 py-10" style="font-family: 'Bricolage Grotesque', sans-serif;">
-    <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center text-[#1a1025] leading-[1.15]">Got a minute for<br>your health?</h1>
+    <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center leading-[1.15] bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent">Got a minute for<br>your health?</h1>
 
     <div class="flex gap-3.5 flex-wrap justify-center">
 
@@ -114,6 +114,29 @@
 
     </div>
 
+    {#if authLoaded}
+    <div class="posture-wrapper relative {isSignedIn ? 'tooltip tooltip-top' : ''}" data-tip={isSignedIn ? "Open up your chest and shoulders. Undo the slouch. 🦐" : null}>
+      <button
+        type="button"
+        on:click={() => { if (isSignedIn) handleStartWorkout('posture'); }}
+        disabled={!isSignedIn}
+        class="btn-posture relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold overflow-hidden outline-none flex items-center gap-2 text-[#1a1025] min-w-[300px] justify-center transition-[transform,box-shadow] duration-[120ms] {isSignedIn ? 'cursor-pointer active:scale-95 bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]' : 'cursor-not-allowed bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]'}"
+      >
+        <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">🦐</span>
+        Go Unshrimp
+      </button>
+      {#if !isSignedIn}
+        <span class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#1a1025] flex items-center justify-center shadow-md pointer-events-none z-10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <div class="posture-tip">
+          <p>Open up your chest and shoulders. Undo the slouch. 🦐</p>
+          <p class="mt-2.5 font-bold">To Unlock - create free account or sign in</p>
+        </div>
+      {/if}
+    </div>
+    {/if}
+
     <div class="min-h-[28px]">
     {#if authLoaded}
       {#if isSignedIn}
@@ -138,7 +161,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2"
-          >Grab a free account</a> to unlock more.
+          >Grab a free account</a> to unlock more, including Posture Pack.
           (<a
             href="{import.meta.env.VITE_API_BASE_URL}/users/sign_in"
             target="_blank"
@@ -191,6 +214,39 @@
   }
   :global(.tooltip::after) {
     border-top-color: white;
+  }
+
+  /* ---- CUSTOM POSTURE TOOLTIP (disabled state) ---- */
+  .posture-tip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    color: #1a1025;
+    font-size: 18px;
+    line-height: 1.35;
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+    white-space: nowrap;
+  }
+  .posture-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border: 6px solid transparent;
+    border-top-color: white;
+  }
+  .posture-wrapper:hover .posture-tip {
+    opacity: 1;
   }
 
   /* ---- STRENGTH: shimmer ::before ---- */
@@ -248,6 +304,9 @@
   .btn-balance:hover .emoji {
     animation: seesaw 0.7s ease-in-out infinite alternate;
   }
+  .btn-posture:not(:disabled):hover .emoji {
+    animation: shrimp-wiggle 0.5s ease-in-out infinite alternate;
+  }
 
   /* ---- KEYFRAMES ---- */
   @keyframes clench {
@@ -280,5 +339,9 @@
   @keyframes seesaw {
     0%   { transform: rotate(-18deg) translateY(2px); }
     100% { transform: rotate(18deg) translateY(-2px); }
+  }
+  @keyframes shrimp-wiggle {
+    0%   { transform: rotate(-15deg) scale(1) translateX(-1px); }
+    100% { transform: rotate(15deg)  scale(1.22) translateX(1px); filter: drop-shadow(0 0 5px rgba(244,114,182,0.6)); }
   }
 </style>
