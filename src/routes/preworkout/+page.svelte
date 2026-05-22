@@ -114,18 +114,17 @@
 
     </div>
 
-    {#if authLoaded}
-    <div class="posture-wrapper relative {isSignedIn ? 'tooltip tooltip-top' : ''}" data-tip={isSignedIn ? "Open up your chest and shoulders. Undo the slouch. 🦐" : null}>
+    <div class="posture-wrapper relative {authLoaded && isSignedIn ? 'tooltip tooltip-top' : ''}" data-tip={authLoaded && isSignedIn ? "Open up your chest and shoulders. Undo the slouch. 🦐" : null}>
       <button
         type="button"
-        on:click={() => { if (isSignedIn) handleStartWorkout('posture'); }}
-        disabled={!isSignedIn}
-        class="btn-posture relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold overflow-hidden outline-none flex items-center gap-2 text-[#1a1025] min-w-[300px] justify-center transition-[transform,box-shadow] duration-[120ms] {isSignedIn ? 'cursor-pointer active:scale-95 bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]' : 'cursor-not-allowed bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]'}"
+        on:click={() => { if (authLoaded && isSignedIn) handleStartWorkout('posture'); }}
+        disabled={!authLoaded || !isSignedIn}
+        class="btn-posture relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold overflow-hidden outline-none flex items-center gap-2 text-[#1a1025] min-w-[300px] justify-center transition-[transform,box-shadow,opacity] duration-[120ms] {!authLoaded ? 'btn-posture-loading cursor-default bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]' : isSignedIn ? 'cursor-pointer active:scale-95 bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]' : 'cursor-not-allowed bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]'}"
       >
-        <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">🦐</span>
-        Go Unshrimp
+        <span class="emoji inline-block text-2xl leading-none transition-transform duration-200" class:invisible={!authLoaded}>🦐</span>
+        <span class:invisible={!authLoaded}>Go Unshrimp</span>
       </button>
-      {#if !isSignedIn}
+      {#if authLoaded && !isSignedIn}
         <span class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#1a1025] flex items-center justify-center shadow-md pointer-events-none z-10">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </span>
@@ -135,9 +134,8 @@
         </div>
       {/if}
     </div>
-    {/if}
 
-    <div class="min-h-[28px]">
+    <div class="min-h-[72px] flex items-start justify-center">
     {#if authLoaded}
       {#if isSignedIn}
         <p
@@ -247,6 +245,24 @@
   }
   .posture-wrapper:hover .posture-tip {
     opacity: 1;
+  }
+
+  /* ---- POSTURE BUTTON: loading shimmer ---- */
+  .btn-posture-loading {
+    position: relative;
+  }
+  .btn-posture-loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: posture-shimmer 1.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes posture-shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   /* ---- STRENGTH: shimmer ::before ---- */
