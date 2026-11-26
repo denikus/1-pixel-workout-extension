@@ -5,9 +5,22 @@
   let wasIntercepted = false;
   let isSignedIn = true;
   let authLoaded = false;
+  // Whether this guest has met Marti on the site (/auth/status). Until they have,
+  // the page shows only the journey screen: start the onboarding, or skip.
+  let onboardingSeen = true;
+  // Remembered once seen, so the workout buttons show at once on later visits
+  // instead of waiting for /auth/status.
+  let onboardingSeenCached = false;
   let base_workout_url;
 
+  $: showJourney = authLoaded && !isSignedIn && !onboardingSeen;
+  $: showContent = authLoaded || onboardingSeenCached;
+
   onMount(async () => {
+    chrome.storage.local.get('onboardingSeen', (result) => {
+      onboardingSeenCached = result?.onboardingSeen === true;
+    });
+
     const urlParams = new URLSearchParams(window.location.search);
     const encodedUrl = urlParams.get('original');
 
@@ -26,9 +39,13 @@
       });
       const data = await res.json();
       isSignedIn = data.authenticated;
+      // Older servers don't send onboarding_seen: treat that as seen.
+      onboardingSeen = isSignedIn || data.onboarding_seen !== false;
     } catch {
       isSignedIn = false;
+      onboardingSeen = true;
     }
+    chrome.storage.local.set({ onboardingSeen: onboardingSeen });
     authLoaded = true;
   });
 
@@ -59,6 +76,17 @@
     });
   }
 
+  // The site sends a guest who hasn't met Marti to its onboarding first, and keeps
+  // source/intercepted so the onboarding workout can offer "Continue browsing".
+  function handleStartJourney() {
+    chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
+      if (chrome.runtime.lastError) {
+        // Message delivery failed
+      }
+      window.location.href = base_workout_url;
+    });
+  }
+
   function handleDashboardWorkout() {
     chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
       if (chrome.runtime.lastError) {
@@ -75,6 +103,24 @@
   </div>
 
   <div class="flex-1 flex flex-col items-center justify-center gap-7 px-5 py-10" style="font-family: 'Bricolage Grotesque', sans-serif;">
+    {#if showJourney}
+    <span class="text-[64px] leading-none" aria-hidden="true">🪐</span>
+    <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center leading-[1.15] bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent">Got a minute<br>for Mars?</h1>
+    <p class="max-w-md text-center text-lg font-semibold leading-snug text-[#6b6390]">
+      Marti is building a base on Mars. Do a 1-minute workout together and earn your first m² of land.
+    </p>
+    <button
+      type="button"
+      on:click={handleStartJourney}
+      class="btn-journey relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold cursor-pointer outline-none flex items-center gap-2 text-[#1a1025] min-w-[300px] justify-center transition-[transform,box-shadow] duration-[120ms] active:scale-95 bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]"
+    >
+      <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">🚀</span>
+      Start your space journey
+    </button>
+    {:else}
+    <!-- Hidden (not removed) until we know the guest has met Marti, so a new guest
+         doesn't see the workout buttons flash before the journey screen. -->
+    <div class="contents" class:invisible={!showContent}>
     <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center leading-[1.15] bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent">Got a minute for<br>your health?</h1>
 
     <div class="flex gap-3.5 flex-wrap justify-center">
@@ -153,13 +199,12 @@
           class="text-[13px] font-semibold text-[#9991b8] px-2 py-1 tracking-wide"
           style="font-family: 'Bricolage Grotesque', sans-serif;"
         >
-          Only 3 workouts in guest mode.
           <a
-            href="{import.meta.env.VITE_API_BASE_URL}/pricing"
+            href="{import.meta.env.VITE_API_BASE_URL}/users/sign_up"
             target="_blank"
             rel="noopener noreferrer"
             class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2"
-          >Grab a free account</a> to unlock more, including Posture Pack.
+          >Create a free account</a> to keep your land on Mars and unlock Posture Pack.
           (<a
             href="{import.meta.env.VITE_API_BASE_URL}/users/sign_in"
             target="_blank"
@@ -170,6 +215,8 @@
       {/if}
     {/if}
     </div>
+    </div>
+    {/if}
 
     {#if wasIntercepted}
     <button
@@ -320,6 +367,9 @@
   .btn-balance:hover .emoji {
     animation: seesaw 0.7s ease-in-out infinite alternate;
   }
+  .btn-journey:hover .emoji {
+    animation: lift-off 0.5s ease-in-out infinite alternate;
+  }
   .btn-posture:not(:disabled):hover .emoji {
     animation: shrimp-wiggle 0.5s ease-in-out infinite alternate;
   }
@@ -355,6 +405,10 @@
   @keyframes seesaw {
     0%   { transform: rotate(-18deg) translateY(2px); }
     100% { transform: rotate(18deg) translateY(-2px); }
+  }
+  @keyframes lift-off {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(2px, -4px) rotate(-8deg); }
   }
   @keyframes shrimp-wiggle {
     0%   { transform: rotate(-15deg) scale(1) translateX(-1px); }
