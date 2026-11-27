@@ -1,24 +1,57 @@
 <script>
   import { onMount } from 'svelte';
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Classes for the workout types this version knows. A type the site adds
+  // later gets PLAIN_WORKOUT_CLASS, so older versions still show its button.
+  const WORKOUT_CLASSES = {
+    strength: 'btn-strength overflow-hidden text-orange-800 min-w-[220px] bg-orange-200 shadow-[0_6px_20px_theme(colors.orange.200/45%),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_theme(colors.orange.200/60%),inset_0_1px_0_rgba(255,255,255,0.5)]',
+    stretch: 'btn-stretch overflow-hidden text-teal-800 min-w-[220px] bg-teal-300 shadow-[0_6px_20px_theme(colors.teal.300/45%),inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_10px_32px_theme(colors.teal.300/60%)]',
+    balanced: 'btn-balance overflow-hidden text-white min-w-[220px] bg-[#f87171] shadow-[0_6px_20px_#f8717173,inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_10px_32px_#f8717199]',
+    posture: 'btn-posture overflow-hidden text-[#1a1025] min-w-[300px] bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]'
+  };
+  const PLAIN_WORKOUT_CLASS = 'text-[#1a1025] min-w-[220px] bg-white shadow-[0_6px_20px_rgba(26,16,37,0.08)] hover:scale-[1.04]';
+
+  // The buttons before /extension/home answers, or when it can't be reached.
+  const DEFAULT_WORKOUTS = [
+    { type: 'strength', label: 'Go Strength', emoji: '💪', hint: "Push-ups, squats, planks. You'll feel it tomorrow. 🔋" },
+    { type: 'stretch', label: 'Go Stretch', emoji: '🤸', hint: 'Mobility and tension relief. No sweat, literally. 🧘' },
+    { type: 'balanced', label: 'Go Balanced', emoji: '⚖️', hint: 'A little strength, a little mobility. Good for any moment. ✨' },
+    { type: 'posture', label: 'Go Unshrimp', emoji: '🦐', hint: 'Open up your chest and shoulders. Undo the slouch. 🦐' }
+  ];
+
   let originalUrl = '#';
   let wasIntercepted = false;
-  let isSignedIn = true;
+  let isSignedIn = false;
   let authLoaded = false;
-  // Whether this guest has met Marti on the site (/auth/status). Until they have,
-  // the page shows only the journey screen: start the onboarding, or skip.
+  // Whether this guest has met Marti on the site. Until they have, the page
+  // shows only the journey screen: start the onboarding, or skip.
   let onboardingSeen = true;
   // Remembered once seen, so the workout buttons show at once on later visits
-  // instead of waiting for /auth/status.
+  // instead of waiting for the site.
   let onboardingSeenCached = false;
   let base_workout_url;
+  // /extension/home: workout buttons, challenges and the crew's weekly
+  // scoreboard. The last signed-in answer is kept in chrome.storage.local and
+  // shown until the fresh one arrives, so the cards don't pop in.
+  let home = null;
 
   $: showJourney = authLoaded && !isSignedIn && !onboardingSeen;
   $: showContent = authLoaded || onboardingSeenCached;
+  $: workouts = (Array.isArray(home?.workouts) && home.workouts.length ? home.workouts : DEFAULT_WORKOUTS)
+    .filter((workout) => workout && workout.type && workout.label);
+  $: challenges = isSignedIn && Array.isArray(home?.challenges) ? home.challenges.filter((challenge) => challenge?.id) : [];
+  $: crew = isSignedIn && Array.isArray(home?.crew?.members) && home.crew.members.length ? home.crew : null;
+  $: hasCards = challenges.length > 0 || crew;
 
   onMount(async () => {
-    chrome.storage.local.get('onboardingSeen', (result) => {
+    chrome.storage.local.get(['onboardingSeen', 'extensionHome'], (result) => {
       onboardingSeenCached = result?.onboardingSeen === true;
+      if (!authLoaded && result?.extensionHome?.authenticated) {
+        home = result.extensionHome;
+        isSignedIn = true;
+      }
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -28,32 +61,50 @@
       originalUrl = decodeURIComponent(encodedUrl);
       wasIntercepted = true;
     }
-    base_workout_url = `${import.meta.env.VITE_API_BASE_URL}/workouts/roulette?source=extension${wasIntercepted ? '&intercepted=true' : ''}`;
+    base_workout_url = `${API_BASE_URL}/workouts/roulette?source=extension${wasIntercepted ? '&intercepted=true' : ''}`;
     if (wasIntercepted) {
       chrome.storage.local.set({ originalUrl: originalUrl });
     }
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/status`, {
-        credentials: 'include'
-      });
-      const data = await res.json();
-      isSignedIn = data.authenticated;
-      // Older servers don't send onboarding_seen: treat that as seen.
-      onboardingSeen = isSignedIn || data.onboarding_seen !== false;
-    } catch {
-      isSignedIn = false;
-      onboardingSeen = true;
-    }
-    chrome.storage.local.set({ onboardingSeen: onboardingSeen });
+    const data = await loadHome();
+    home = data;
+    isSignedIn = data?.authenticated === true;
+    // An older server or no answer at all: count the onboarding as seen.
+    onboardingSeen = isSignedIn || data?.onboarding_seen !== false;
+    chrome.storage.local.set({ onboardingSeen: onboardingSeen, extensionHome: isSignedIn ? data : null });
     authLoaded = true;
   });
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // /extension/home, or /auth/status on a server that doesn't have it yet.
+  async function loadHome() {
+    const version = chrome.runtime.getManifest().version;
+    try {
+      return await fetchJson(`${API_BASE_URL}/extension/home?ext=${encodeURIComponent(version)}${wasIntercepted ? '&intercepted=1' : ''}`);
+    } catch {
+      try {
+        return await fetchJson(`${API_BASE_URL}/auth/status`);
+      } catch {
+        return null;
+      }
+    }
+  }
 
   function isSafeUrl(url) {
     try {
       const parsed = new URL(url);
       return ['http:', 'https:'].includes(parsed.protocol);
     } catch { return false; }
+  }
+
+  // Links from the server only ever lead to the site.
+  function siteUrl(url) {
+    return typeof url === 'string' && url.startsWith(`${API_BASE_URL}/`) ? url : null;
   }
 
   function handleSkip() {
@@ -67,33 +118,36 @@
     });
   }
 
-  function handleStartWorkout(workoutType) {
+  // Leaving for a workout on the site: the background starts the workout
+  // cooldown and counts the interruption first.
+  function goToWorkout(url) {
+    if (!url) return;
     chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
       if (chrome.runtime.lastError) {
         // Message delivery failed
       }
-      window.location.href = `${base_workout_url}&workout_type=${encodeURIComponent(workoutType)}`;
+      window.location.href = url;
     });
+  }
+
+  function workoutUrl(workout) {
+    return siteUrl(workout.url) || `${base_workout_url}&workout_type=${encodeURIComponent(workout.type)}`;
   }
 
   // The site sends a guest who hasn't met Marti to its onboarding first, and keeps
   // source/intercepted so the onboarding workout can offer "Continue browsing".
   function handleStartJourney() {
-    chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
-      if (chrome.runtime.lastError) {
-        // Message delivery failed
-      }
-      window.location.href = base_workout_url;
-    });
+    goToWorkout(base_workout_url);
   }
 
   function handleDashboardWorkout() {
-    chrome.runtime.sendMessage({action: 'startWorkout'}, () => {
-      if (chrome.runtime.lastError) {
-        // Message delivery failed
-      }
-      window.location.href = `${import.meta.env.VITE_API_BASE_URL}/dashboard`;
-    });
+    goToWorkout(siteUrl(home?.links?.dashboard) || `${API_BASE_URL}/dashboard`);
+  }
+
+  // "Next: Tomorrow · Squat 50 s"
+  function nextText(next) {
+    if (!next?.summary) return '';
+    return next.date_label ? `Next: ${next.date_label} · ${next.summary}` : `Next: ${next.summary}`;
   }
 </script>
 
@@ -123,62 +177,125 @@
     <div class="contents" class:invisible={!showContent}>
     <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center leading-[1.15] bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent">Got a minute for<br>your health?</h1>
 
-    <div class="flex gap-3.5 flex-wrap justify-center">
-
-      <div class="tooltip tooltip-top" data-tip="Push-ups, squats, planks. You'll feel it tomorrow. 🔋">
-        <button
-          type="button"
-          on:click={() => handleStartWorkout('strength')}
-          class="btn-strength relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold cursor-pointer overflow-hidden outline-none flex items-center gap-2 text-orange-800 min-w-[220px] justify-center transition-[transform,box-shadow] duration-[120ms] active:scale-95 bg-orange-200 shadow-[0_6px_20px_theme(colors.orange.200/45%),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_theme(colors.orange.200/60%),inset_0_1px_0_rgba(255,255,255,0.5)]"
-        >
-          <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">💪</span>
-          Go Strength
-        </button>
-      </div>
-
-      <div class="tooltip tooltip-top" data-tip="Mobility and tension relief. No sweat, literally. 🧘">
-        <button
-          type="button"
-          on:click={() => handleStartWorkout('stretch')}
-          class="btn-stretch relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold cursor-pointer overflow-hidden outline-none flex items-center gap-2 text-teal-800 min-w-[220px] justify-center transition-[transform,box-shadow] duration-[120ms] active:scale-95 bg-teal-300 shadow-[0_6px_20px_theme(colors.teal.300/45%),inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_10px_32px_theme(colors.teal.300/60%)]"
-        >
-          <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">🤸</span>
-          Go Stretch
-        </button>
-      </div>
-
-      <div class="tooltip tooltip-top" data-tip="A little strength, a little mobility. Good for any moment. ✨">
-        <button
-          type="button"
-          on:click={() => handleStartWorkout('balanced')}
-          class="btn-balance relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold cursor-pointer overflow-hidden outline-none flex items-center gap-2 text-white min-w-[220px] justify-center transition-[transform,box-shadow] duration-[120ms] active:scale-95 bg-[#f87171] shadow-[0_6px_20px_#f8717173,inset_0_1px_0_rgba(255,255,255,0.5)] hover:shadow-[0_10px_32px_#f8717199]"
-        >
-          <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">⚖️</span>
-          Go Balanced
-        </button>
-      </div>
-
-    </div>
-
-    <div class="posture-wrapper relative {authLoaded && isSignedIn ? 'tooltip tooltip-top' : ''}" data-tip={authLoaded && isSignedIn ? "Open up your chest and shoulders. Undo the slouch. 🦐" : null}>
-      <button
-        type="button"
-        on:click={() => { if (authLoaded && isSignedIn) handleStartWorkout('posture'); }}
-        disabled={!authLoaded || !isSignedIn}
-        class="btn-posture relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold overflow-hidden outline-none flex items-center gap-2 text-[#1a1025] min-w-[300px] justify-center transition-[transform,box-shadow,opacity] duration-[120ms] {!authLoaded ? 'btn-posture-loading cursor-default bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]' : isSignedIn ? 'cursor-pointer active:scale-95 bg-gradient-to-r from-orange-300 via-rose-300 to-pink-400 shadow-[0_6px_20px_rgba(244,114,182,0.45),inset_0_1px_0_rgba(255,255,255,0.5)] hover:scale-[1.04] hover:shadow-[0_10px_32px_rgba(244,114,182,0.6),inset_0_1px_0_rgba(255,255,255,0.5)]' : 'cursor-not-allowed bg-gradient-to-r from-orange-200 via-rose-200 to-pink-300 shadow-[0_4px_14px_rgba(244,114,182,0.25),inset_0_1px_0_rgba(255,255,255,0.5)]'}"
-      >
-        <span class="emoji inline-block text-2xl leading-none transition-transform duration-200" class:invisible={!authLoaded}>🦐</span>
-        <span class:invisible={!authLoaded}>Go Unshrimp</span>
-      </button>
-      {#if authLoaded && !isSignedIn}
-        <span class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[#1a1025] flex items-center justify-center shadow-md pointer-events-none z-10">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </span>
-        <div class="posture-tip">
-          <p>Open up your chest and shoulders. Undo the slouch. 🦐</p>
-          <p class="mt-2.5 font-bold">To Unlock - create free account or sign in</p>
+    {#if challenges.length}
+    <section class="w-full max-w-xl flex flex-col gap-3" aria-label="Your challenges">
+      {#each challenges as challenge (challenge.id)}
+        <div class="rounded-2xl bg-white/85 px-5 py-4 flex flex-wrap items-center gap-4 shadow-[0_6px_20px_rgba(26,16,37,0.06)]">
+          <div class="flex-1 min-w-[200px]">
+            <p class="text-xs font-bold uppercase tracking-wide text-[#9991b8]">
+              {challenge.day_label || ''}{challenge.kind === 'crew' ? ' · Crew challenge' : ''}
+            </p>
+            <h2 class="text-xl font-extrabold text-[#1a1025] leading-tight">{challenge.name}</h2>
+            {#if challenge.state === 'due' && challenge.today?.summary}
+              <p class="mt-1 text-[15px] font-semibold text-[#6b6390]">{challenge.today.summary}</p>
+            {:else if challenge.state === 'done'}
+              <p class="mt-1 text-[15px] font-semibold text-emerald-700">✅ Done for today</p>
+              {#if challenge.next}<p class="text-sm text-[#6b6390]">{nextText(challenge.next)}</p>{/if}
+            {:else if challenge.state === 'rest'}
+              <p class="mt-1 text-[15px] font-semibold text-[#6b6390]">😴 Rest day</p>
+              {#if challenge.next}<p class="text-sm text-[#6b6390]">{nextText(challenge.next)}</p>{/if}
+            {:else if challenge.next}
+              <p class="mt-1 text-sm text-[#6b6390]">{nextText(challenge.next)}</p>
+            {/if}
+            <p class="mt-1.5 flex flex-wrap gap-x-3 text-xs font-semibold text-[#9991b8]">
+              {#if challenge.progress}<span>{challenge.progress.done} of {challenge.progress.planned} workouts</span>{/if}
+              {#if challenge.streak > 0}<span>🔥 {challenge.streak}</span>{/if}
+              {#if challenge.crew_today?.label}<span>{challenge.crew_today.label}</span>{/if}
+            </p>
+          </div>
+          {#if challenge.state === 'due' && siteUrl(challenge.workout_url)}
+            <button
+              type="button"
+              on:click={() => goToWorkout(siteUrl(challenge.workout_url))}
+              class="px-6 py-3 border-0 rounded-xl text-base font-bold cursor-pointer flex items-center gap-2 text-white bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 shadow-[0_6px_20px_rgba(244,114,182,0.4)] transition-transform duration-[120ms] hover:scale-[1.04] active:scale-95"
+            >
+              Do today's
+              {#if challenge.today?.m2 > 0}<span class="rounded-full bg-white/25 px-2 py-0.5 text-xs">+{challenge.today.m2} m²</span>{/if}
+            </button>
+          {:else if siteUrl(challenge.url)}
+            <a
+              href={siteUrl(challenge.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm font-semibold text-[#7c6fb0] underline decoration-dotted underline-offset-2 hover:text-[#1a1025]"
+            >Open</a>
+          {/if}
         </div>
-      {/if}
+      {/each}
+    </section>
+    {/if}
+
+    {#if crew}
+    <section class="w-full max-w-xl rounded-2xl bg-white/85 px-5 py-4 shadow-[0_6px_20px_rgba(26,16,37,0.06)]" aria-label="Crew weekly scoreboard">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-lg font-extrabold text-[#1a1025]">{crew.emblem || ''} {crew.name}</h2>
+        {#if crew.week}
+          <p class="text-xs font-semibold text-[#9991b8]">Weekly scoreboard · {crew.week.label} · {crew.week.total_m2} m²</p>
+        {/if}
+      </div>
+      <ol class="mt-2">
+        {#each crew.members as member (member.rank)}
+          <li class="flex items-center gap-3 py-2 border-t border-black/5 first:border-0">
+            <span class="w-5 text-sm text-[#9991b8] tabular-nums">{member.rank}</span>
+            {#if crew.changes_label}
+              <span class="w-9 text-sm font-semibold tabular-nums {member.place_change > 0 ? 'text-emerald-700' : member.place_change < 0 ? 'text-rose-600' : 'text-black/25'}">
+                {member.place_change > 0 ? `↑${member.place_change}` : member.place_change < 0 ? `↓${-member.place_change}` : '–'}
+              </span>
+            {/if}
+            <span class="relative shrink-0">
+              <span
+                class="grid size-8 place-items-center rounded-full text-sm font-semibold"
+                style="background-color: {member.color?.bg || '#ede9fe'}; color: {member.color?.text || '#4c1d95'};"
+                aria-hidden="true"
+              >{member.initial || ''}</span>
+              {#if member.level}
+                <span class="absolute -right-1.5 -bottom-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#1a1025] px-1 text-[11px] font-semibold text-white ring-2 ring-white" title="Level {member.level}">{member.level}</span>
+              {/if}
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="truncate text-[15px] text-[#1a1025]">
+                <span class="font-semibold">{member.name}</span>{#if member.me}<span class="text-[#9991b8]"> (you)</span>{/if}
+              </p>
+              {#if member.last_active_label}<p class="text-xs text-[#9991b8]">{member.last_active_label}</p>{/if}
+            </div>
+            {#if member.gained > 0}<span class="text-sm font-semibold text-emerald-700 tabular-nums">+{member.gained}</span>{/if}
+            <span class="w-16 text-right font-bold text-[#1a1025] tabular-nums">{member.m2} m²</span>
+          </li>
+        {/each}
+      </ol>
+      <div class="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+        {#if crew.changes_label}<p class="text-xs text-[#9991b8]">{crew.changes_label}</p>{/if}
+        {#if siteUrl(crew.url)}
+          <a
+            href={siteUrl(crew.url)}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs font-semibold text-[#7c6fb0] underline decoration-dotted underline-offset-2 hover:text-[#1a1025]"
+          >Open crew page</a>
+        {/if}
+      </div>
+    </section>
+    {/if}
+
+    {#if hasCards}
+      <p class="-mb-3 text-sm font-semibold text-[#9991b8]">Or a quick workout</p>
+    {/if}
+
+    <div class="flex gap-3.5 flex-wrap justify-center max-w-[720px]">
+      {#each workouts as workout (workout.type)}
+        <div class="{workout.type === 'posture' ? 'w-full flex justify-center' : ''}">
+          <div class="tooltip tooltip-top" data-tip={workout.hint || null}>
+            <button
+              type="button"
+              on:click={() => goToWorkout(workoutUrl(workout))}
+              class="relative px-14 py-[18px] border-0 rounded-2xl text-lg font-bold cursor-pointer outline-none flex items-center gap-2 justify-center transition-[transform,box-shadow] duration-[120ms] active:scale-95 {WORKOUT_CLASSES[workout.type] || PLAIN_WORKOUT_CLASS}"
+            >
+              {#if workout.emoji}<span class="emoji inline-block text-2xl leading-none transition-transform duration-200">{workout.emoji}</span>{/if}
+              {workout.label}
+            </button>
+          </div>
+        </div>
+      {/each}
     </div>
 
     <div class="min-h-[72px] flex items-start justify-center">
@@ -189,7 +306,7 @@
           style="font-family: 'Bricolage Grotesque', sans-serif;"
         >
           Or pick your own workout on the <a
-            href="{import.meta.env.VITE_API_BASE_URL}/dashboard?source=extension"
+            href={siteUrl(home?.links?.dashboard) || `${API_BASE_URL}/dashboard?source=extension`}
             on:click|preventDefault={handleDashboardWorkout}
             class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2 cursor-pointer"
           >site</a>
@@ -200,13 +317,13 @@
           style="font-family: 'Bricolage Grotesque', sans-serif;"
         >
           <a
-            href="{import.meta.env.VITE_API_BASE_URL}/users/sign_up"
+            href={siteUrl(home?.links?.sign_up) || `${API_BASE_URL}/users/sign_up`}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2"
-          >Create a free account</a> to keep your land on Mars and unlock Posture Pack.
+          >Create a free account</a> to keep your land on Mars.
           (<a
-            href="{import.meta.env.VITE_API_BASE_URL}/users/sign_in"
+            href={siteUrl(home?.links?.sign_in) || `${API_BASE_URL}/users/sign_in`}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2"
@@ -259,57 +376,6 @@
   }
   :global(.tooltip::after) {
     border-top-color: white;
-  }
-
-  /* ---- CUSTOM POSTURE TOOLTIP (disabled state) ---- */
-  .posture-tip {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: white;
-    color: #1a1025;
-    font-size: 18px;
-    line-height: 1.35;
-    padding: 10px 16px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    text-align: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-    z-index: 20;
-    white-space: nowrap;
-  }
-  .posture-tip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -6px;
-    border: 6px solid transparent;
-    border-top-color: white;
-  }
-  .posture-wrapper:hover .posture-tip {
-    opacity: 1;
-  }
-
-  /* ---- POSTURE BUTTON: loading shimmer ---- */
-  .btn-posture-loading {
-    position: relative;
-  }
-  .btn-posture-loading::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%);
-    transform: translateX(-100%);
-    animation: posture-shimmer 1.2s ease-in-out infinite;
-    pointer-events: none;
-  }
-  @keyframes posture-shimmer {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
   }
 
   /* ---- STRENGTH: shimmer ::before ---- */
