@@ -182,7 +182,10 @@
 
   <div class="flex-1 flex flex-col items-center justify-center gap-7 px-5 py-10" style="font-family: 'Bricolage Grotesque', sans-serif;">
     {#if showJourney}
-    <span class="text-[64px] leading-none" aria-hidden="true">🪐</span>
+    <!-- A still frame of the landing page's pixel Mars, without the green
+         terraformed specks (static/mars.svg). -->
+    <img src="/mars.svg" alt="" width="112" height="112" class="block size-28 [image-rendering:pixelated]" />
+
     <h1 class="text-[clamp(28px,5vw,48px)] font-extrabold text-center leading-[1.15] bg-gradient-to-r from-orange-400 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent">Got a minute<br>for Mars?</h1>
     <p class="max-w-md text-center text-lg font-semibold leading-snug text-[#6b6390]">
       Marti is building a base on Mars. Do a 1-minute workout together and earn your first m² of land.
