@@ -45,7 +45,19 @@
   $: crew = isSignedIn && Array.isArray(home?.crew?.members) && home.crew.members.length ? home.crew : null;
   $: hasCards = challenges.length > 0 || crew;
 
-  onMount(async () => {
+  onMount(() => {
+    init();
+    // A guest may sign in on the site in another tab ("Already have a base on
+    // Mars?"). When they come back, ask the site again, so the page switches to
+    // their challenges and buttons without waiting for the next interruption.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && authLoaded && !isSignedIn) refreshHome();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  });
+
+  async function init() {
     chrome.storage.local.get(['onboardingSeen', 'extensionHome'], (result) => {
       onboardingSeenCached = result?.onboardingSeen === true;
       if (!authLoaded && result?.extensionHome?.authenticated) {
@@ -66,14 +78,23 @@
       chrome.storage.local.set({ originalUrl: originalUrl });
     }
 
-    const data = await loadHome();
+    applyHome(await loadHome());
+  }
+
+  function applyHome(data) {
     home = data;
     isSignedIn = data?.authenticated === true;
     // An older server or no answer at all: count the onboarding as seen.
     onboardingSeen = isSignedIn || data?.onboarding_seen !== false;
     chrome.storage.local.set({ onboardingSeen: onboardingSeen, extensionHome: isSignedIn ? data : null });
     authLoaded = true;
-  });
+  }
+
+  // On coming back to the tab. No answer keeps the page as it is.
+  async function refreshHome() {
+    const data = await loadHome();
+    if (data) applyHome(data);
+  }
 
   async function fetchJson(url) {
     const res = await fetch(url, { credentials: 'include' });
@@ -134,10 +155,13 @@
     return siteUrl(workout.url) || `${base_workout_url}&workout_type=${encodeURIComponent(workout.type)}`;
   }
 
-  // The site sends a guest who hasn't met Marti to its onboarding first, and keeps
-  // source/intercepted so the onboarding workout can offer "Continue browsing".
+  // Straight to Marti's onboarding on the site. It keeps source/intercepted, so
+  // the onboarding workout can offer "Continue browsing".
   function handleStartJourney() {
-    goToWorkout(base_workout_url);
+    goToWorkout(
+      siteUrl(home?.links?.onboarding) ||
+        `${API_BASE_URL}/onboarding?source=extension${wasIntercepted ? '&intercepted=true' : ''}`
+    );
   }
 
   function handleDashboardWorkout() {
@@ -171,6 +195,17 @@
       <span class="emoji inline-block text-2xl leading-none transition-transform duration-200">🚀</span>
       Start your space journey
     </button>
+    <!-- A guest here may already have an account and just not be signed in.
+         The sign-in opens in a new tab; coming back refreshes the page. -->
+    <p class="-mt-2 text-[15px] font-semibold text-[#9991b8]">
+      Already have a base on Mars?
+      <a
+        href={siteUrl(home?.links?.sign_in) || `${API_BASE_URL}/users/sign_in`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[#7c6fb0] transition-colors duration-200 hover:text-[#1a1025] underline decoration-dotted underline-offset-2"
+      >Sign in</a>
+    </p>
     {:else}
     <!-- Hidden (not removed) until we know the guest has met Marti, so a new guest
          doesn't see the workout buttons flash before the journey screen. -->
